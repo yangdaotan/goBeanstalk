@@ -1,6 +1,7 @@
 package goBeanstalk
 
 import (
+	"container/list"
 	"fmt"
 	"io"
 	"net"
@@ -11,7 +12,7 @@ import (
 type Conn struct {
 	c       *textproto.Conn
 	used    string
-	watched []string
+	watched *list.List
 }
 
 type Req struct {
@@ -32,7 +33,8 @@ func NewConn(conn io.ReadWriteCloser) *Conn {
 	c := new(Conn)
 	c.c = textproto.NewConn(conn)
 	c.used = "default"
-	c.watched = append(c.watched, "default")
+	c.watched = list.New()
+	c.watched.PushBack("default")
 	return c
 }
 
@@ -148,6 +150,7 @@ func (c *Conn) Watch(tubeName string) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
+	c.watched.PushBack(tubeName)
 	return n, nil
 }
 
@@ -159,6 +162,12 @@ func (c *Conn) Ignore(tubeName string) (n int, err error) {
 	_, err = c.Read(r, false, "WATCHING %d", &n)
 	if err != nil {
 		return 0, err
+	}
+	for e := c.watched.Front(); e != nil; e = e.Next() {
+		if e.Value == tubeName {
+			c.watched.Remove(e)
+			break
+		}
 	}
 	return n, nil
 }
