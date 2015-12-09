@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// parse the yaml body to dict from the server for special cmd
 func ParseDict(dat []byte) map[string]string {
 	if dat == nil {
 		return nil
@@ -24,6 +25,7 @@ func ParseDict(dat []byte) map[string]string {
 	return d
 }
 
+// parse the body to list for some special cmd
 func ParseList(dat []byte) []string {
 	if dat == nil {
 		return nil
@@ -41,6 +43,7 @@ func ParseList(dat []byte) []string {
 	return l
 }
 
+// Parse the data body from the server
 func ParseSize(s string) (string, int, error) {
 	i := strings.LastIndex(s, " ")
 	if i == -1 { //不存在" "

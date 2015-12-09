@@ -1,3 +1,9 @@
+// implements the all protocol of beanstalk
+//cousumer : watch, ignore, reserve, reserve-with-time, release, delete, bury, touch
+//productor: Use , Put
+//other : peek, peek-ready, peek-delayed, peek-buried, kick,
+//        list-tubes, list-tube-used, list-tubes-watched, pause-tube, stats, stats-jobs, stats-tube, quit
+
 package goBeanstalk
 
 import (
@@ -9,12 +15,15 @@ import (
 	"time"
 )
 
+// A Conn represents a connection to a beanstalk server.
 type Conn struct {
-	c       *textproto.Conn
-	used    string
-	watched *list.List
+	c    *textproto.Conn
+	used string //tube of used
+	// watched []string
+	watched *list.List //tubes of the watched
 }
 
+// request/response of Pipeline
 type Req struct {
 	id uint
 	op string
@@ -29,15 +38,19 @@ var (
 	minusSpace = []byte{'-', ' '}
 )
 
+// NewConn returns a new Conn using conn for I/O.
 func NewConn(conn io.ReadWriteCloser) *Conn {
 	c := new(Conn)
 	c.c = textproto.NewConn(conn)
 	c.used = "default"
 	c.watched = list.New()
 	c.watched.PushBack("default")
+	// c.watched = append(c.watched, "default")
 	return c
 }
 
+// Dial connects to the given address on the given network using net.Dial
+// and then returns a new Conn for the connection.
 func Dial(network, addr string) (*Conn, error) {
 	c, err := net.Dial(network, addr)
 	if err != nil {
@@ -46,10 +59,15 @@ func Dial(network, addr string) (*Conn, error) {
 	return NewConn(c), nil
 }
 
+func (c *Conn) GetWatch() *list.List {
+	return c.watched
+}
+
 func (c *Conn) Close() error {
 	return c.c.Close()
 }
 
+//Write wirte the cmd and body to server
 func (c *Conn) Write(body []byte, op string, args ...interface{}) (Req, error) {
 	r := Req{c.c.Next(), op}
 	c.c.StartRequest(r.id)
@@ -75,6 +93,7 @@ func (c *Conn) Write(body []byte, op string, args ...interface{}) (Req, error) {
 	return r, nil
 }
 
+//write cmd
 func (c *Conn) WriteLine(cmd string, args ...interface{}) {
 	io.WriteString(c.c.W, cmd)
 	for _, a := range args {
@@ -84,6 +103,7 @@ func (c *Conn) WriteLine(cmd string, args ...interface{}) {
 	c.c.W.Write(crnl)
 }
 
+// read the response from server and then format
 func (c *Conn) Read(r Req, readBody bool, format string, a ...interface{}) (body []byte, err error) {
 	c.c.StartResponse(r.id)
 	defer c.c.EndResponse(r.id)
@@ -150,6 +170,7 @@ func (c *Conn) Watch(tubeName string) (n int, err error) {
 	if err != nil {
 		return 0, err
 	}
+	// c.watched = append(c.watched, "tubeName")
 	c.watched.PushBack(tubeName)
 	return n, nil
 }
